@@ -1,0 +1,61 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# Jupyter Notebook checkpoint
+.ipynb_checkpoints/
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cache model dari HuggingFace & lainnya
+**/.no_exist/
+**/.locks/
+**/blobs/
+**/refs/
+**/snapshots/
+app/cache/
+models_cache/
+database/app/cache/
+database/data/models/
+data/models/
+
+# Data hasil processing & backups
+data/backups/
+data/chroma/
+data/processed/
+data/chroma_*/
+app/pocessed/
+database/data/chroma/
+database/data/embeddings/
+
+# Logs
+logs/
+
+# ZIP or temporary uploads
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.tmp
+
+# Personal config
+config/*.env
+.env
+.env.*
+
+# Gunicorn or Uvicorn logs
+*.log
