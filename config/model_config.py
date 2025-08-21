@@ -13,7 +13,7 @@ class ModelConfig:
         self.GROQ_API_KEY = os.getenv("groq_api_key")  # Optional, for Groq models
 
         # --- NAMA MODEL ---
-        self.GENERATIVE_MODEL_NAME = os.getenv("GENERATIVE_MODEL_NAME", "meta-llama/llama-4-scout-17b-16e-instruct")
+        self.GENERATIVE_MODEL_NAME = os.getenv("GENERATIVE_MODEL_NAME", "meta-llama/llama-4-maverick-17b-128e-instruct")
         self.EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
         self.RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")
 

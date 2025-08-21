@@ -146,6 +146,8 @@ def reciprocal_rank_fusion(results: List[List[dict]], k: int = 60) -> List[dict]
     sorted_doc_ids = sorted(fused_scores.keys(), key=lambda id: fused_scores[id], reverse=True)
     return [unique_docs[doc_id] for doc_id in sorted_doc_ids]
 
+# Di dalam file app_main.py
+
 async def retrieve_and_rerank(query: str, grade: str) -> List:
     if grade not in chroma_collections:
         logger.warning(f"Pencarian dibatalkan: tidak ada database untuk kelas {grade}.")
@@ -155,13 +157,19 @@ async def retrieve_and_rerank(query: str, grade: str) -> List:
     bm25_idx = bm25_indexes.get(grade)
     bm25_docs = bm25_documents_map.get(grade, [])
     
-    logger.info(f"Menjalankan pencarian hibrida untuk: '{query}' pada database kelas {grade}...")
+    logger.info(f"Menjalankan PENCARIAN HIBRIDA untuk: '{query}' pada database kelas {grade}...")
     
+    # 1. Pencarian Vektor (Semantik) dengan HyDE
     hypothetical_document = await generate_hypothetical_answer(query)
     embedding = embedding_model.encode(hypothetical_document).tolist()
-    vector_results_raw = collection.query(query_embeddings=[embedding], n_results=config.TOP_K_RETRIEVAL, include=['metadatas', 'documents'])
+    vector_results_raw = collection.query(
+        query_embeddings=[embedding], 
+        n_results=config.TOP_K_RETRIEVAL, 
+        include=['metadatas', 'documents']
+    )
     vector_results = [{"content": doc, "metadata": meta} for doc, meta in zip(vector_results_raw["documents"][0], vector_results_raw["metadatas"][0])]
 
+    # 2. Pencarian Kata Kunci (BM25)
     bm25_results = []
     if bm25_idx:
         tokenized_query = query.lower().split(" ")
@@ -169,12 +177,22 @@ async def retrieve_and_rerank(query: str, grade: str) -> List:
         top_bm25_indices = np.argsort(bm25_scores)[::-1][:config.TOP_K_RETRIEVAL]
         bm25_results = [bm25_docs[i] for i in top_bm25_indices if bm25_scores[i] > 0]
     
-    fused_documents = reciprocal_rank_fusion([vector_results, bm25_results])
+    # 3. Gabungkan hasil dan hilangkan duplikat
+    all_retrieved_docs = vector_results + bm25_results
+    unique_docs_content = set()
+    unique_docs = []
+    for doc in all_retrieved_docs:
+        if doc["content"] not in unique_docs_content:
+            unique_docs.append(doc)
+            unique_docs_content.add(doc["content"])
     
-    if not fused_documents: return []
+    if not unique_docs:
+        return []
 
-    docs_to_rerank = [doc["content"] for doc in fused_documents]
-    metadatas_to_rerank = [doc["metadata"] for doc in fused_documents]
+    # 4. Re-ranking Final dengan CrossEncoder
+    logger.info(f"Total {len(unique_docs)} dokumen unik ditemukan untuk di-rerank.")
+    docs_to_rerank = [doc["content"] for doc in unique_docs]
+    metadatas_to_rerank = [doc["metadata"] for doc in unique_docs]
     pairs = [[query, doc] for doc in docs_to_rerank]
     scores = sigmoid(reranker_model.predict(pairs))
     
@@ -185,7 +203,7 @@ async def generate_real_answer(question: str, history: List[ChatTurn], grade: st
     scored_docs = await retrieve_and_rerank(question, grade=grade)
     
     context_docs, context, retrieved_contents = [], "", []
-    final_sources = [] # Inisialisasi daftar sumber di awal
+    final_sources = [] # Inisialisasi daftar sumber kosong di awal
 
     if scored_docs:
         RELEVANCE_THRESHOLD = 0.3
@@ -195,6 +213,7 @@ async def generate_real_answer(question: str, history: List[ChatTurn], grade: st
             context = "\n\n---\n\n".join([doc[1] for doc in context_docs])
             retrieved_contents = [doc[1] for doc in context_docs]
 
+    
     # --- PERBAIKAN UTAMA: Logika Pemilihan Prompt dan Sumber ---
     if context:
         # Mode 1: Konteks Ditemukan (Jawaban berbasis RAG)
